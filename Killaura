@@ -1,0 +1,65 @@
+local range = 400
+local effectInterval = 0.5
+local targetNpcNames = {
+    "cultist",
+
+    "crossbow cultist",
+    "juggernaut cultist"
+}
+
+local weaponDamage = {
+    ["Katana"] = 15,
+    ["Good Axe"] = 9,
+    ["Old Axe"] = 7,
+}
+
+local character = script.Parent
+local humanoidRootPart = character:WaitForChild("HumanoidRootPart")
+local humanoid = character:WaitForChild("Humanoid")
+local backpack = character.Parent:WaitForChild("Backpack")
+
+while true do
+    local bestDamage = 0
+    
+    -- Check for tools in the player's backpack
+    for _, tool in ipairs(backpack:GetChildren()) do
+        if weaponDamage[tool.Name] and weaponDamage[tool.Name] > bestDamage then
+            bestDamage = weaponDamage[tool.Name]
+        end
+    end
+
+    -- Also check for tools currently equipped on the character and unequip them
+    local equippedTool = character:FindFirstChildOfClass("Tool")
+    if equippedTool and weaponDamage[equippedTool.Name] then
+        if weaponDamage[equippedTool.Name] > bestDamage then
+            bestDamage = weaponDamage[equippedTool.Name]
+        end
+        equippedTool.Parent = backpack
+    end
+
+    local partsInRadius = workspace:FindPartsInRegion3(
+        Region3.new(humanoidRootPart.Position - Vector3.new(range, range, range), humanoidRootPart.Position + Vector3.new(range, range, range))
+    )
+
+    for _, part in ipairs(partsInRadius) do
+        local model = part.Parent
+        local npcHumanoid = model:FindFirstChildOfClass("Humanoid")
+
+        if npcHumanoid and npcHumanoid.Health > 0 and model ~= character then
+            for _, npcName in ipairs(targetNpcNames) do
+                if model.Name == npcName then
+                    local distance = (humanoidRootPart.Position - model:GetPivot().Position).Magnitude
+                    
+                    if distance <= range then
+                        if bestDamage > 0 then
+                            local damage = bestDamage
+                            npcHumanoid:TakeDamage(damage)
+                        end
+                    end
+                end
+            end
+        end
+    end
+
+    task.wait(effectInterval)
+end
