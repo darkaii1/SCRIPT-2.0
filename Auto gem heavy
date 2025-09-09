@@ -165,7 +165,7 @@ end
 
 local function startStrongholdWave(stronghold)
     if not stronghold then return end
-    local pos=stronghold.PrimaryPart and stronghold.PrimaryPart.Position or stronghold.Position
+    local pos=(stronghold.PrimaryPart or stronghold:FindFirstChildWhichIsA("BasePart") or stronghold:FindFirstChild("HumanoidRootPart") or {Position=Vector3.new()}).Position
     teleportAbove(pos,5)
     wait(0.5)
 end
@@ -203,11 +203,12 @@ spawn(function()
                 end
             end
         end
-        wait(10) -- 10 seconds delay before hopping
 
-        -- LOOPED INSTANT SERVER HOP
+        wait(10)
+
+        -- FAST LOOPED SERVER HOP (0.5s retry)
         local placeId = game.PlaceId
-        local visited = {}
+        local visited={}
         while true do
             local success, servers = pcall(function()
                 return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
@@ -217,27 +218,27 @@ spawn(function()
                 for _,s in pairs(servers) do
                     if tonumber(s.playing)<tonumber(s.maxPlayers) and s.id~=game.JobId and not visited[s.id] then
                         visited[s.id]=true
-                        TeleportService:TeleportToPlaceInstance(placeId,s.id,player)
+                        pcall(function()
+                            TeleportService:TeleportToPlaceInstance(placeId,s.id,player)
+                        end)
                         hopped=true
                         break
                     end
                 end
                 if not hopped then
-                    visited={} -- reset if all servers full/visited
+                    visited={} -- reset if all servers full
                 end
             end
             wait(0.5)
         end
-
-        wait(0.1)
     end
 end)
 
 spawn(function()
     while true do
-        if not char or char.Humanoid.Health <= 0 then
+        if not char or char.Humanoid.Health<=0 then
             pcall(function()
-                serverHopLoop()
+                serverHop()
             end)
             break
         end
