@@ -10,17 +10,18 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 
+-- GUI
 local blGui = Instance.new("ScreenGui", playerGui)
 blGui.Name = "FarmingMessageGui"
 local messageLabel = Instance.new("TextLabel", blGui)
 messageLabel.Size = UDim2.new(0,300,0,40)
-messageLabel.Position=UDim2.new(0,10,1,-50)
-messageLabel.BackgroundTransparency=0.5
-messageLabel.BackgroundColor3=Color3.fromRGB(0,0,0)
-messageLabel.TextColor3=Color3.fromRGB(255,255,0)
-messageLabel.Font=Enum.Font.SourceSansBold
-messageLabel.TextSize=20
-messageLabel.Text="Waiting for HumanoidRootPart..."
+messageLabel.Position = UDim2.new(0,10,1,-50)
+messageLabel.BackgroundTransparency = 0.5
+messageLabel.BackgroundColor3 = Color3.fromRGB(0,0,0)
+messageLabel.TextColor3 = Color3.fromRGB(255,255,0)
+messageLabel.Font = Enum.Font.SourceSansBold
+messageLabel.TextSize = 20
+messageLabel.Text = "Waiting for HumanoidRootPart..."
 
 local function updateMessage(msg,color)
     messageLabel.Text = msg
@@ -67,6 +68,8 @@ spawn(function()
         wait(0.03)
     end
 end)
+
+-- KillAura
 local weaponDPS={["Katana"]=15,["Good Axe"]=9,["Old Axe"]=7}
 local targets={["Cultist"]=true,["Crossbow Cultist"]=true,["Juggernaut Cultist"]=true}
 
@@ -112,27 +115,33 @@ local function multiHitAttack()
     end
 end
 
+-- Chest & Stronghold
 local function findDiamondChest()
     for _,v in ipairs(Workspace:GetDescendants()) do
         if v.Name=="Diamond Chest" and v:FindFirstChildWhichIsA("ProximityPrompt") then return v end
     end
 end
 
-local function findStrongholdEntrance()
-    local chest=findDiamondChest()
-    if not chest then return nil end
-    local nearest,minDist=nil,math.huge
-    for _,npc in ipairs(Workspace:GetDescendants()) do
-        if targets[npc.Name] and npc:FindFirstChild("HumanoidRootPart") then
-            local dist=(npc.HumanoidRootPart.Position-chest.Position).Magnitude
-            if dist<minDist then minDist,nearest=dist,npc end
+local function findStronghold()
+    for _,v in ipairs(Workspace:GetDescendants()) do
+        if v:IsA("Model") and v.Name=="Stronghold" then
+            return v
         end
     end
-    return nearest
 end
 
 local function teleportAbove(position,height)
     char:SetPrimaryPartCFrame(CFrame.new(position+Vector3.new(0,height,0)))
+end
+
+local function teleportInsideStronghold(stronghold)
+    if not stronghold then return end
+    local spawnPoint = stronghold:FindFirstChild("Spawn")
+    if spawnPoint then
+        char:SetPrimaryPartCFrame(spawnPoint.CFrame + Vector3.new(0,3,0))
+    else
+        char:SetPrimaryPartCFrame(stronghold:GetModelCFrame() + Vector3.new(0,5,0))
+    end
 end
 
 local function autoOpenChest(chest)
@@ -150,6 +159,19 @@ local function autoOpenChest(chest)
     end
 end
 
+local function autoStartWave(stronghold)
+    if stronghold and stronghold:FindFirstChildWhichIsA("ProximityPrompt") then
+        local prompt = stronghold:FindFirstChildWhichIsA("ProximityPrompt")
+        for i=1,5 do
+            prompt:InputHoldBegin()
+            wait(0.1)
+            prompt:InputHoldEnd()
+            wait(0.1)
+        end
+    end
+end
+
+-- Server Hop
 local function serverHop()
     local placeId = game.PlaceId
     while true do
@@ -166,20 +188,17 @@ local function serverHop()
     end
 end
 
+-- Main Farming Loop
 while true do
     local chest=findDiamondChest()
     if chest then
         teleportAbove(chest.Position,3)
         wait(0.3)
-        local prompt=chest:FindFirstChildWhichIsA("ProximityPrompt")
-        local strongholdNPC=nil
-        if not prompt.Enabled then
-            strongholdNPC=findStrongholdEntrance()
-            if strongholdNPC then
-                teleportAbove(strongholdNPC.HumanoidRootPart.Position,5)
-                wait(1)
-                teleportAbove(chest.Position,3)
-            end
+        local stronghold=findStronghold()
+        if stronghold then
+            teleportInsideStronghold(stronghold)
+            wait(1)
+            autoStartWave(stronghold)
         end
         while true do
             local cultistsLeft=false
@@ -196,7 +215,6 @@ while true do
         autoOpenChest(chest)
         wait(1)
         updateMessage("STARTING FARM!", Color3.fromRGB(0,255,0))
-        if strongholdNPC then wait(10) end
         serverHop()
         break
     else
