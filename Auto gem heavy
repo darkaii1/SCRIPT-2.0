@@ -10,15 +10,12 @@ local HttpService = game:GetService("HttpService")
 local TeleportService = game:GetService("TeleportService")
 local Workspace = game:GetService("Workspace")
 
-local targets = {["Cultist"]=true,["Crossbow Cultist"]=true,["Juggernaut Cultist"]=true}
-local weaponDPS={["Katana"]=15,["Good Axe"]=9,["Old Axe"]=7}
-
 local blGui = Instance.new("ScreenGui", playerGui)
 blGui.Name = "FarmingMessageGui"
 local messageLabel = Instance.new("TextLabel", blGui)
 messageLabel.Size = UDim2.new(0,300,0,40)
 messageLabel.Position = UDim2.new(0,10,1,-50)
-messageLabel.BackgroundTransparency=0.5
+messageLabel.BackgroundTransparency = 0.5
 messageLabel.BackgroundColor3 = Color3.fromRGB(0,0,0)
 messageLabel.TextColor3 = Color3.fromRGB(255,255,0)
 messageLabel.Font = Enum.Font.SourceSansBold
@@ -41,11 +38,12 @@ until hrp
 updateMessage("STARTING FARM!",Color3.fromRGB(0,255,0))
 
 local topGui = Instance.new("ScreenGui", playerGui)
-topGui.Name="TopDarkaiiGui"
+topGui.Name = "TopDarkaiiGui"
 local letters = "Darkaii"
 local fonts = {Enum.Font.Gotham,Enum.Font.GothamBold,Enum.Font.Antique,Enum.Font.ArialBold,Enum.Font.SourceSansBold,Enum.Font.Fantasy}
-local letterLabels={}
+local letterLabels = {}
 local startX,startY,spacing=500,20,40
+
 for i=1,#letters do
     local letter=Instance.new("TextLabel")
     letter.Size=UDim2.new(0,36,0,36)
@@ -70,6 +68,9 @@ spawn(function()
     end
 end)
 
+local weaponDPS={["Katana"]=15,["Good Axe"]=9,["Old Axe"]=7}
+local targets={["Cultist"]=true,["Crossbow Cultist"]=true,["Juggernaut Cultist"]=true}
+
 local function getStrongestWeaponAndRemote()
     local bestTool,bestDamage,bestRemote=nil,0,nil
     local function checkTool(tool)
@@ -83,7 +84,7 @@ local function getStrongestWeaponAndRemote()
     for _,tool in ipairs(char:GetChildren()) do if tool:IsA("Tool") then checkTool(tool) end end
     if bestTool then
         for _,v in ipairs(bestTool:GetDescendants()) do
-            if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then bestRemote=v; break end
+            if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then bestRemote=v;break end
         end
     end
     return bestTool,bestRemote
@@ -112,21 +113,9 @@ local function multiHitAttack()
     end
 end
 
-local function findAllChests()
-    local chests={}
-    for _,v in ipairs(Workspace:GetDescendants()) do
-        if v:FindFirstChildWhichIsA("ProximityPrompt") and v.Name=="Chest" then
-            table.insert(chests,v)
-        end
-    end
-    return chests
-end
-
 local function findDiamondChest()
     for _,v in ipairs(Workspace:GetDescendants()) do
-        if v.Name=="Diamond Chest" and v:FindFirstChildWhichIsA("ProximityPrompt") then
-            return v
-        end
+        if v.Name=="Diamond Chest" and v:FindFirstChildWhichIsA("ProximityPrompt") then return v end
     end
 end
 
@@ -135,113 +124,90 @@ local function teleportAbove(position,height)
 end
 
 local function autoOpenChest(chest)
-    if not chest then return false end
     local prompt=chest:FindFirstChildWhichIsA("ProximityPrompt")
     if prompt and prompt.Enabled then
-        prompt:InputHoldBegin()
-        prompt:InputHoldEnd()
-        local hasDiamond=chest:FindFirstChild("Diamond")~=nil
-        return hasDiamond
+        local fireproximity=coroutine.wrap(function()
+            for i=1,5 do
+                prompt:InputHoldBegin()
+                wait(0.1)
+                prompt:InputHoldEnd()
+                wait(0.1)
+            end
+        end)
+        fireproximity()
     end
-    return false
 end
 
-local function openAllChestsAndCollectDiamonds()
-    local chests=findAllChests()
-    for _,chest in ipairs(chests) do
-        local droppedDiamond=autoOpenChest(chest)
-        if droppedDiamond then
-            teleportAbove(chest.Position,3)
-            wait(0.2)
+local function findStrongholdEntrance()
+    local chest=findDiamondChest()
+    if not chest then return nil end
+    local nearest,minDist=nil,math.huge
+    for _,npc in ipairs(Workspace:GetDescendants()) do
+        if targets[npc.Name] and npc:FindFirstChild("HumanoidRootPart") then
+            local dist=(npc.HumanoidRootPart.Position-chest.Position).Magnitude
+            if dist<minDist then minDist,nearest=dist,npc end
         end
     end
+    return nearest
 end
 
-local function findStronghold()
-    for _,v in ipairs(Workspace:GetDescendants()) do
-        if v.Name=="Stronghold" then return v end
-    end
-end
-
-local function startStrongholdWave(stronghold)
-    if not stronghold then return end
-    local pos=(stronghold.PrimaryPart or stronghold:FindFirstChildWhichIsA("BasePart") or stronghold:FindFirstChild("HumanoidRootPart") or {Position=Vector3.new()}).Position
-    teleportAbove(pos,5)
+local function startStrongholdWave(strongholdPosition)
+    teleportAbove(strongholdPosition,5)
     wait(0.5)
 end
 
 spawn(function()
+    wait(10) -- delay before starting server hop loop
+    local placeId = game.PlaceId
+    local visited = {}
     while true do
-        openAllChestsAndCollectDiamonds()
-        local diamondChest=findDiamondChest()
-        if diamondChest then
-            teleportAbove(diamondChest.Position,3)
-            local stronghold=findStronghold()
-            if stronghold then
-                startStrongholdWave(stronghold)
-                local waveOngoing=false
-                while not waveOngoing do
-                    for _,npc in ipairs(Workspace:GetDescendants()) do
-                        if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
-                            waveOngoing=true
-                            break
-                        end
-                    end
-                    wait(0.1)
-                end
-                while true do
-                    if getgenv().KillAura then multiHitAttack() end
-                    wait(getgenv().AttackSpeed)
-                    local cleared=true
-                    for _,npc in ipairs(Workspace:GetDescendants()) do
-                        if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
-                            cleared=false
-                            break
-                        end
-                    end
-                    if cleared then break end
+        local servers = {}
+        local success = pcall(function()
+            servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
+        end)
+        if success and type(servers) == "table" then
+            local hopped = false
+            for _, s in pairs(servers) do
+                if tonumber(s.playing) < tonumber(s.maxPlayers) and s.id ~= game.JobId and not visited[s.id] then
+                    visited[s.id] = true
+                    pcall(function()
+                        TeleportService:TeleportToPlaceInstance(placeId, s.id, player)
+                    end)
+                    hopped = true
+                    break
                 end
             end
+            if not hopped then visited = {} end
         end
+        wait(0.5)
+    end
+end)
 
-        wait(10)
-
-        -- FAST LOOPED SERVER HOP (0.5s retry)
-        local placeId = game.PlaceId
-        local visited={}
-        while true do
-            local success, servers = pcall(function()
-                return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
-            end)
-            if success and type(servers)=="table" then
-                local hopped=false
-                for _,s in pairs(servers) do
-                    if tonumber(s.playing)<tonumber(s.maxPlayers) and s.id~=game.JobId and not visited[s.id] then
-                        visited[s.id]=true
-                        pcall(function()
-                            TeleportService:TeleportToPlaceInstance(placeId,s.id,player)
-                        end)
-                        hopped=true
+while true do
+    local chest=findDiamondChest()
+    if chest then
+        teleportAbove(chest.Position,3)
+        wait(0.3)
+        local strongholdNPC=findStrongholdEntrance()
+        if strongholdNPC then
+            startStrongholdWave(strongholdNPC.HumanoidRootPart.Position)
+            teleportAbove(chest.Position,3)
+            while true do
+                local cultistsLeft=false
+                for _,npc in ipairs(Workspace:GetDescendants()) do
+                    if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
+                        cultistsLeft=true
                         break
                     end
                 end
-                if not hopped then
-                    visited={} -- reset if all servers full
-                end
+                if not cultistsLeft then break end
+                if getgenv().KillAura then multiHitAttack() end
+                wait(getgenv().AttackSpeed)
             end
-            wait(0.5)
         end
+        autoOpenChest(chest)
+        wait(1)
+        updateMessage("STARTING FARM!", Color3.fromRGB(0,255,0))
     end
-end)
-
-spawn(function()
-    while true do
-        if not char or char.Humanoid.Health<=0 then
-            pcall(function()
-                serverHop()
-            end)
-            break
-        end
-        wait(0.1)
-    end
-end)
+    wait(0.5)
+end
