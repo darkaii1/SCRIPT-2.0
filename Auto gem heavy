@@ -14,13 +14,13 @@ local blGui = Instance.new("ScreenGui", playerGui)
 blGui.Name = "FarmingMessageGui"
 local messageLabel = Instance.new("TextLabel", blGui)
 messageLabel.Size = UDim2.new(0,300,0,40)
-messageLabel.Position = UDim2.new(0,10,1,-50)
-messageLabel.BackgroundTransparency = 0.5
-messageLabel.BackgroundColor3 = Color3.fromRGB(0,0,0)
-messageLabel.TextColor3 = Color3.fromRGB(255,255,0)
-messageLabel.Font = Enum.Font.SourceSansBold
-messageLabel.TextSize = 20
-messageLabel.Text = "Waiting for HumanoidRootPart..."
+messageLabel.Position=UDim2.new(0,10,1,-50)
+messageLabel.BackgroundTransparency=0.5
+messageLabel.BackgroundColor3=Color3.fromRGB(0,0,0)
+messageLabel.TextColor3=Color3.fromRGB(255,255,0)
+messageLabel.Font=Enum.Font.SourceSansBold
+messageLabel.TextSize=20
+messageLabel.Text="Waiting for HumanoidRootPart..."
 
 local function updateMessage(msg,color)
     messageLabel.Text = msg
@@ -38,10 +38,10 @@ until hrp
 updateMessage("STARTING FARM!",Color3.fromRGB(0,255,0))
 
 local topGui = Instance.new("ScreenGui", playerGui)
-topGui.Name = "TopDarkaiiGui"
+topGui.Name="TopDarkaiiGui"
 local letters = "Darkaii"
 local fonts = {Enum.Font.Gotham,Enum.Font.GothamBold,Enum.Font.Antique,Enum.Font.ArialBold,Enum.Font.SourceSansBold,Enum.Font.Fantasy}
-local letterLabels = {}
+local letterLabels={}
 local startX,startY,spacing=500,20,40
 
 for i=1,#letters do
@@ -58,7 +58,6 @@ for i=1,#letters do
 end
 
 spawn(function()
-
     local t=0
     while true do
         for i,lbl in ipairs(letterLabels) do
@@ -68,7 +67,6 @@ spawn(function()
         wait(0.03)
     end
 end)
-
 local weaponDPS={["Katana"]=15,["Good Axe"]=9,["Old Axe"]=7}
 local targets={["Cultist"]=true,["Crossbow Cultist"]=true,["Juggernaut Cultist"]=true}
 
@@ -149,28 +147,6 @@ local function autoOpenChest(chest)
             end
         end)
         fireproximity()
-        wait(0.2)
-        for _,v in ipairs(chest:GetDescendants()) do
-            if v.Name:lower():find("diamond") then
-                teleportAbove(chest.Position,3)
-                break
-            end
-        end
-    end
-end
-
-local function startWaveInStronghold()
-    local diamondChest=findDiamondChest()
-    if diamondChest then
-        teleportAbove(diamondChest.Position,3)
-    end
-end
-
-local function finishChestPhaseAndStartWave()
-    local diamondChest=findDiamondChest()
-    if diamondChest then
-        teleportAbove(diamondChest.Position,3)
-        startWaveInStronghold()
     end
 end
 
@@ -187,7 +163,9 @@ local function serverHop()
     if serverId then
         TeleportService:TeleportToPlaceInstance(placeId,serverId,player)
     end
-endwhile true do
+end
+
+while true do
     local chest=findDiamondChest()
     if chest then
         teleportAbove(chest.Position,3)
@@ -218,7 +196,6 @@ endwhile true do
         wait(1)
         updateMessage("STARTING FARM!", Color3.fromRGB(0,255,0))
         if strongholdNPC then wait(10) end
-        finishChestPhaseAndStartWave()
         serverHop()
         break
     else
