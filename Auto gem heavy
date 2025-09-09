@@ -58,6 +58,7 @@ for i=1,#letters do
 end
 
 spawn(function()
+
     local t=0
     while true do
         for i,lbl in ipairs(letterLabels) do
@@ -66,7 +67,9 @@ spawn(function()
         t=t+0.1
         wait(0.03)
     end
-end)local weaponDPS={["Katana"]=15,["Good Axe"]=9,["Old Axe"]=7}
+end)
+
+local weaponDPS={["Katana"]=15,["Good Axe"]=9,["Old Axe"]=7}
 local targets={["Cultist"]=true,["Crossbow Cultist"]=true,["Juggernaut Cultist"]=true}
 
 local function getStrongestWeaponAndRemote()
@@ -109,7 +112,9 @@ local function multiHitAttack()
             end
         end
     end
-endlocal function findDiamondChest()
+end
+
+local function findDiamondChest()
     for _,v in ipairs(Workspace:GetDescendants()) do
         if v.Name=="Diamond Chest" and v:FindFirstChildWhichIsA("ProximityPrompt") then return v end
     end
