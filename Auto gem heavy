@@ -152,16 +152,17 @@ end
 
 local function serverHop()
     local placeId = game.PlaceId
-    local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
-    local serverId
-    for _,s in pairs(servers) do
-        if tonumber(s.playing)<tonumber(s.maxPlayers) and s.id~=game.JobId then
-            serverId=s.id
-            break
+    while true do
+        local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
+        if servers and #servers > 0 then
+            for _,s in ipairs(servers) do
+                if tonumber(s.playing) < tonumber(s.maxPlayers) and s.id ~= game.JobId then
+                    TeleportService:TeleportToPlaceInstance(placeId, s.id, player)
+                    wait(0.1)
+                end
+            end
         end
-    end
-    if serverId then
-        TeleportService:TeleportToPlaceInstance(placeId,serverId,player)
+        wait(0.1)
     end
 end
 
