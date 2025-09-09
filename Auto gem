@@ -1,244 +1,223 @@
--- CAO Hub Style Auto Gem Farm Script for 99 Nights in the Forest
-
-local Players = game:GetService("Players")
-local Workspace = game:GetService("Workspace")
-local TeleportService = game:GetService("TeleportService")
-local RunService = game:GetService("RunService")
-local HttpService = game:GetService("HttpService")
-local ReplicatedStorage = game:GetService("ReplicatedStorage")
-
-local player = Players.LocalPlayer
-
 getgenv().KillAura = true
 getgenv().Range = 100
 getgenv().AttackSpeed = 0.15
-getgenv().AutoFarmDiamonds = true
-getgenv().ServerHopAfterChest = true
 
+local player = game.Players.LocalPlayer
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
+local playerGui = player:WaitForChild("PlayerGui")
+local HttpService = game:GetService("HttpService")
+local TeleportService = game:GetService("TeleportService")
+local Workspace = game:GetService("Workspace")
 
-local function createGUIs()
-    local guiParent = player:WaitForChild("PlayerGui")
+local blGui = Instance.new("ScreenGui", playerGui)
+blGui.Name = "FarmingMessageGui"
+local messageLabel = Instance.new("TextLabel", blGui)
+messageLabel.Size = UDim2.new(0,300,0,40)
+messageLabel.Position = UDim2.new(0,10,1,-50)
+messageLabel.BackgroundTransparency = 0.5
+messageLabel.BackgroundColor3 = Color3.fromRGB(0,0,0)
+messageLabel.TextColor3 = Color3.fromRGB(255,255,0)
+messageLabel.Font = Enum.Font.SourceSansBold
+messageLabel.TextSize = 20
+messageLabel.Text = "Waiting for HumanoidRootPart..."
 
-    local blGui = Instance.new("ScreenGui", guiParent)
-    blGui.Name = "FarmingStatusGui"
-    local blLabel = Instance.new("TextLabel", blGui)
-    blLabel.Size = UDim2.new(0, 300, 0, 40)
-    blLabel.Position = UDim2.new(0, 10, 1, -50)
-    blLabel.BackgroundTransparency = 0.5
-    blLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    blLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-    blLabel.Font = Enum.Font.SourceSansBold
-    blLabel.TextSize = 20
-    blLabel.Text = "Waiting for HumanoidRootPart..."
-
-    local drGui = Instance.new("ScreenGui", guiParent)
-    drGui.Name = "DiamondCounterGui"
-    local drLabel = Instance.new("TextLabel", drGui)
-    drLabel.Size = UDim2.new(0, 200, 0, 30)
-    drLabel.Position = UDim2.new(1, -210, 1, -40)
-    drLabel.BackgroundTransparency = 0.5
-    drLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-    drLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
-    drLabel.Font = Enum.Font.SourceSansBold
-    drLabel.TextSize = 12
-    drLabel.Text = "Diamonds: 0"
-
-    local letters = "Darkaii"
-    local letterSize = 96
-    local padding = 20
-    local totalWidth = #letters * letterSize + padding*2
-    local totalHeight = letterSize + padding*2
-
-    local fonts = {Enum.Font.Gotham, Enum.Font.GothamBold, Enum.Font.Antique, Enum.Font.ArialBold, Enum.Font.SourceSansBold, Enum.Font.Fantasy}
-
-    local topGui = Instance.new("ScreenGui", guiParent)
-    topGui.Name = "TopDarkaiiGui"
-    local bgFrame = Instance.new("Frame", topGui)
-    bgFrame.Size = UDim2.new(0, totalWidth, 0, totalHeight)
-    bgFrame.Position = UDim2.new(0.5, -totalWidth/2, 0, 10)
-    bgFrame.BackgroundColor3 = Color3.fromRGB(255,255,255)
-    bgFrame.BorderSizePixel = 0
-
-    for i=1,#letters do
-        local label = Instance.new("TextLabel", bgFrame)
-        label.Size = UDim2.new(0, letterSize, 0, letterSize)
-        label.Position = UDim2.new(0, padding + (i-1)*letterSize, 0, padding)
-        label.BackgroundTransparency = 1
-        label.Text = letters:sub(i,i)
-        label.Font = fonts[math.random(1,#fonts)]
-        label.TextSize = letterSize
-        label.TextColor3 = Color3.fromRGB(0,0,0)
-    end
-
-    return blLabel, drLabel, bgFrame
+local function updateMessage(msg,color)
+    messageLabel.Text = msg
+    if color then messageLabel.TextColor3 = color end
 end
 
-local blLabel, drLabel, darkaiiFrame = createGUIs()
+repeat
+    hrp = char:FindFirstChild("HumanoidRootPart")
+    if not hrp then
+        updateMessage("Waiting for HumanoidRootPart...",Color3.fromRGB(255,255,0))
+        wait(0.5)
+    end
+until hrp
+
+updateMessage("STARTING FARM!",Color3.fromRGB(0,255,0))
+
+local topGui = Instance.new("ScreenGui", playerGui)
+topGui.Name = "TopDarkaiiGui"
+local letters = "Darkaii"
+local fonts = {Enum.Font.Gotham,Enum.Font.GothamBold,Enum.Font.Antique,Enum.Font.ArialBold,Enum.Font.SourceSansBold,Enum.Font.Fantasy}
+local letterLabels = {}
+local startX,startY,spacing=500,20,40
+
+for i=1,#letters do
+    local letter=Instance.new("TextLabel")
+    letter.Size=UDim2.new(0,36,0,36)
+    letter.Position=UDim2.new(0,startX+(i-1)*spacing,0,startY)
+    letter.BackgroundTransparency=1
+    letter.TextColor3=Color3.fromRGB(255,255,255)
+    letter.Font=fonts[math.random(1,#fonts)]
+    letter.TextSize=36
+    letter.Text=letters:sub(i,i)
+    letter.Parent=topGui
+    table.insert(letterLabels,letter)
+end
 
 spawn(function()
+    local t=0
     while true do
-        for _, label in ipairs(darkaiiFrame:GetChildren()) do
-            if label:IsA("TextLabel") then
-                for i=1,5 do label.TextSize = label.TextSize + 2 wait(0.05) end
-                for i=1,5 do label.TextSize = label.TextSize - 2 wait(0.05) end
-            end
+        for i,lbl in ipairs(letterLabels) do
+            lbl.Position=UDim2.new(0,startX+(i-1)*spacing,0,startY+math.sin(t+i*0.5)*10)
         end
-        wait(0.2)
+        t=t+0.1
+        wait(0.03)
     end
-end)
-
-spawn(function()
-    while true do
-        local stats = player:FindFirstChild("leaderstats")
-        if stats and stats:FindFirstChild("Diamonds") then
-            drLabel.Text = "Diamonds: "..stats.Diamonds.Value
-        end
-        wait(0.3)
-    end
-end)
-
-local weaponDPS = {["Katana"]=15, ["Good Axe"]=9, ["Old Axe"]=7}
-local targets = {["Cultist"]=true, ["Crossbow Cultist"]=true, ["Juggernaut Cultist"]=true}
+end)local weaponDPS={["Katana"]=15,["Good Axe"]=9,["Old Axe"]=7}
+local targets={["Cultist"]=true,["Crossbow Cultist"]=true,["Juggernaut Cultist"]=true}
 
 local function getStrongestWeaponAndRemote()
-    local bestTool,bestDamage,bestRemote = nil,0,nil
+    local bestTool,bestDamage,bestRemote=nil,0,nil
     local function checkTool(tool)
-        local dmg = weaponDPS[tool.Name] or 0
-        if tool:FindFirstChild("Damage") then dmg = tonumber(tool.Damage.Value) or dmg end
-        if tool:FindFirstChild("Stats") and tool.Stats:FindFirstChild("Damage") then dmg = tonumber(tool.Stats.Damage.Value) or dmg end
-        if tool:GetAttribute("Damage") then dmg = tonumber(tool:GetAttribute("Damage")) or dmg end
-        if dmg > bestDamage then bestDamage,bestTool = dmg,tool end
+        local dmg=weaponDPS[tool.Name] or 0
+        if tool:FindFirstChild("Damage") then dmg=tonumber(tool.Damage.Value) or dmg end
+        if tool:FindFirstChild("Stats") and tool.Stats:FindFirstChild("Damage") then dmg=tonumber(tool.Stats.Damage.Value) or dmg end
+        if tool:GetAttribute("Damage") then dmg=tonumber(tool:GetAttribute("Damage")) or dmg end
+        if dmg>bestDamage then bestDamage,bestTool=dmg,tool end
     end
-    for _, tool in ipairs(player.Backpack:GetChildren()) do if tool:IsA("Tool") then checkTool(tool) end end
-    for _, tool in ipairs(char:GetChildren()) do if tool:IsA("Tool") then checkTool(tool) end end
+    for _,tool in ipairs(player.Backpack:GetChildren()) do if tool:IsA("Tool") then checkTool(tool) end end
+    for _,tool in ipairs(char:GetChildren()) do if tool:IsA("Tool") then checkTool(tool) end end
     if bestTool then
-        for _, v in ipairs(bestTool:GetDescendants()) do
-            if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then bestRemote=v; break end
+        for _,v in ipairs(bestTool:GetDescendants()) do
+            if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then bestRemote=v;break end
         end
     end
     return bestTool,bestRemote
 end
 
 local function fireRemote(remote,npc)
-    local hum = npc:FindFirstChild("Humanoid")
+    local hum=npc:FindFirstChild("Humanoid")
     if not hum then return end
     pcall(function() remote:FireServer(npc) end)
-    pcall(function() remote:FireServer("Attack", npc) end)
-    pcall(function() remote:FireServer("Hit", npc) end)
-    pcall(function() remote:FireServer(npc, hum) end)
+    pcall(function() remote:FireServer("Attack",npc) end)
+    pcall(function() remote:FireServer("Hit",npc) end)
+    pcall(function() remote:FireServer(npc,hum) end)
     pcall(function() remote:FireServer({Target=npc}) end)
 end
 
 local function multiHitAttack()
-    local _, remote = getStrongestWeaponAndRemote()
+    local _,remote=getStrongestWeaponAndRemote()
     if not remote then return end
-    for _, npc in ipairs(Workspace:GetDescendants()) do
+    for _,npc in ipairs(Workspace:GetDescendants()) do
         if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") then
             if targets[npc.Name] and npc.Humanoid.Health>0 then
-                if (npc.HumanoidRootPart.Position - hrp.Position).Magnitude <= getgenv().Range then
-                    fireRemote(remote,npc)
-                end
+                local dist=(npc.HumanoidRootPart.Position-hrp.Position).Magnitude
+                if dist<=getgenv().Range then fireRemote(remote,npc) end
             end
         end
     end
-end
-
-local function findDiamondChest()
-    for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name=="Diamond Chest" and v:FindFirstChildWhichIsA("ProximityPrompt") then
-            return v
-        end
+endlocal function findDiamondChest()
+    for _,v in ipairs(Workspace:GetDescendants()) do
+        if v.Name=="Diamond Chest" and v:FindFirstChildWhichIsA("ProximityPrompt") then return v end
     end
 end
 
-local function teleportAbove(pos,height)
-    char:SetPrimaryPartCFrame(CFrame.new(pos + Vector3.new(0,height,0)))
+local function findStrongholdEntrance()
+    local chest=findDiamondChest()
+    if not chest then return nil end
+    local nearest,minDist=nil,math.huge
+    for _,npc in ipairs(Workspace:GetDescendants()) do
+        if targets[npc.Name] and npc:FindFirstChild("HumanoidRootPart") then
+            local dist=(npc.HumanoidRootPart.Position-chest.Position).Magnitude
+            if dist<minDist then minDist,nearest=dist,npc end
+        end
+    end
+    return nearest
+end
+
+local function teleportAbove(position,height)
+    char:SetPrimaryPartCFrame(CFrame.new(position+Vector3.new(0,height,0)))
 end
 
 local function autoOpenChest(chest)
-    local prompt = chest:FindFirstChildWhichIsA("ProximityPrompt")
+    local prompt=chest:FindFirstChildWhichIsA("ProximityPrompt")
     if prompt and prompt.Enabled then
-        local wrap = coroutine.wrap(function()
-            for i = 1, 5 do
+        local fireproximity=coroutine.wrap(function()
+            for i=1,5 do
                 prompt:InputHoldBegin()
                 wait(0.1)
                 prompt:InputHoldEnd()
                 wait(0.1)
             end
         end)
-        wrap()
+        fireproximity()
+        wait(0.2)
+        for _,v in ipairs(chest:GetDescendants()) do
+            if v.Name:lower():find("diamond") then
+                teleportAbove(chest.Position,3)
+                break
+            end
+        end
     end
 end
 
-local function hasStronghold()
-    for _, v in ipairs(Workspace:GetDescendants()) do
-        if v.Name=="Stronghold Entrance" then return true end
+local function startWaveInStronghold()
+    local diamondChest=findDiamondChest()
+    if diamondChest then
+        teleportAbove(diamondChest.Position,3)
     end
-    return false
+end
+
+local function finishChestPhaseAndStartWave()
+    local diamondChest=findDiamondChest()
+    if diamondChest then
+        teleportAbove(diamondChest.Position,3)
+        startWaveInStronghold()
+    end
 end
 
 local function serverHop()
-    local success, servers = pcall(function()
-        return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
-    end)
-    if success and servers and servers.data then
-        for _, server in ipairs(servers.data) do
-            if server.playing < server.maxPlayers and server.id ~= game.JobId then
-                TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
-                return
+    local placeId = game.PlaceId
+    local servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
+    local serverId
+    for _,s in pairs(servers) do
+        if tonumber(s.playing)<tonumber(s.maxPlayers) and s.id~=game.JobId then
+            serverId=s.id
+            break
+        end
+    end
+    if serverId then
+        TeleportService:TeleportToPlaceInstance(placeId,serverId,player)
+    end
+endwhile true do
+    local chest=findDiamondChest()
+    if chest then
+        teleportAbove(chest.Position,3)
+        wait(0.3)
+        local prompt=chest:FindFirstChildWhichIsA("ProximityPrompt")
+        local strongholdNPC=nil
+        if not prompt.Enabled then
+            strongholdNPC=findStrongholdEntrance()
+            if strongholdNPC then
+                teleportAbove(strongholdNPC.HumanoidRootPart.Position,5)
+                wait(1)
+                teleportAbove(chest.Position,3)
             end
         end
-    end
-end
-
-local function autoJoinGame()
-    if Workspace:FindFirstChild("Lobby") then
-        local joinEvent = ReplicatedStorage:FindFirstChild("JoinGame")
-        if joinEvent then
-            joinEvent:FireServer()
-            repeat wait(1) until Workspace:FindFirstChild("Diamond Chest")
-        end
-    end
-end
-
-autoJoinGame()
-
-spawn(function()
-    while getgenv().AutoFarmDiamonds do
-        local chest = findDiamondChest()
-        if chest then
-            blLabel.Text = "Teleporting to Chest..."
-            teleportAbove(chest.Position,3)
-            wait(0.3)
-
-            blLabel.Text = "Clearing Cultists..."
-            while true do
-                local cultistsLeft=false
-                for _, npc in ipairs(Workspace:GetDescendants()) do
-                    if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
-                        cultistsLeft=true
-                        break
-                    end
+        while true do
+            local cultistsLeft=false
+            for _,npc in ipairs(Workspace:GetDescendants()) do
+                if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
+                    cultistsLeft=true
+                    break
                 end
-                if not cultistsLeft then break end
-                if getgenv().KillAura then multiHitAttack() end
-                wait(getgenv().AttackSpeed)
             end
-
-            blLabel.Text = "Opening Chest..."
-            autoOpenChest(chest)
-            wait(1)
-            blLabel.Text = "STARTING FARM!"
-
-            if getgenv().ServerHopAfterChest then
-                if hasStronghold() then wait(10) end
-                serverHop()
-            end
-        else
-            wait(0.5)
+            if not cultistsLeft then break end
+            if getgenv().KillAura then multiHitAttack() end
+            wait(getgenv().AttackSpeed)
         end
-        wait(0.5)
+        autoOpenChest(chest)
+        wait(1)
+        updateMessage("STARTING FARM!", Color3.fromRGB(0,255,0))
+        if strongholdNPC then wait(10) end
+        finishChestPhaseAndStartWave()
+        serverHop()
+        break
+    else
+        serverHop()
     end
-end)
+    wait(0.5)
+end
