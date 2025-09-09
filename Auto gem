@@ -1,132 +1,104 @@
--- SERVICES
+-- CAO Hub Style Auto Gem Farm Script for 99 Nights in the Forest
+
 local Players = game:GetService("Players")
 local Workspace = game:GetService("Workspace")
 local TeleportService = game:GetService("TeleportService")
+local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local player = Players.LocalPlayer
 
 getgenv().KillAura = true
 getgenv().Range = 100
 getgenv().AttackSpeed = 0.15
+getgenv().AutoFarmDiamonds = true
+getgenv().ServerHopAfterChest = true
 
--- WAIT FOR CHARACTER AND HRP
 local char = player.Character or player.CharacterAdded:Wait()
 local hrp = char:WaitForChild("HumanoidRootPart")
 
--- WAIT FOR PlayerGui
-local guiParent = player:WaitForChild("PlayerGui")
+local function createGUIs()
+    local guiParent = player:WaitForChild("PlayerGui")
 
---====================--
--- BOTTOM-LEFT GUI
---====================--
-local blGui = Instance.new("ScreenGui")
-blGui.Name = "FarmingStatusGui"
-blGui.ResetOnSpawn = false
-blGui.Parent = guiParent
+    local blGui = Instance.new("ScreenGui", guiParent)
+    blGui.Name = "FarmingStatusGui"
+    local blLabel = Instance.new("TextLabel", blGui)
+    blLabel.Size = UDim2.new(0, 300, 0, 40)
+    blLabel.Position = UDim2.new(0, 10, 1, -50)
+    blLabel.BackgroundTransparency = 0.5
+    blLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    blLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+    blLabel.Font = Enum.Font.SourceSansBold
+    blLabel.TextSize = 20
+    blLabel.Text = "Waiting for HumanoidRootPart..."
 
-local blLabel = Instance.new("TextLabel")
-blLabel.Size = UDim2.new(0, 300, 0, 40)
-blLabel.Position = UDim2.new(0, 10, 1, -50)
-blLabel.BackgroundTransparency = 0.5
-blLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
-blLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
-blLabel.Font = Enum.Font.SourceSansBold
-blLabel.TextSize = 20
-blLabel.Text = "Waiting for HumanoidRootPart..."
-blLabel.Parent = blGui
+    local drGui = Instance.new("ScreenGui", guiParent)
+    drGui.Name = "DiamondCounterGui"
+    local drLabel = Instance.new("TextLabel", drGui)
+    drLabel.Size = UDim2.new(0, 200, 0, 30)
+    drLabel.Position = UDim2.new(1, -210, 1, -40)
+    drLabel.BackgroundTransparency = 0.5
+    drLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+    drLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+    drLabel.Font = Enum.Font.SourceSansBold
+    drLabel.TextSize = 12
+    drLabel.Text = "Diamonds: 0"
 
--- UPDATE ONCE HRP LOADED
-blLabel.Text = "STARTING FARM!"
-blLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+    local letters = "Darkaii"
+    local letterSize = 96
+    local padding = 20
+    local totalWidth = #letters * letterSize + padding*2
+    local totalHeight = letterSize + padding*2
 
---====================--
--- TOP-CENTER DARKAII GUI
---====================--
-local letters = "Darkaii"
-local letterSize = 96
-local padding = 20
-local totalWidth = #letters * letterSize + padding*2
-local totalHeight = letterSize + padding*2
+    local fonts = {Enum.Font.Gotham, Enum.Font.GothamBold, Enum.Font.Antique, Enum.Font.ArialBold, Enum.Font.SourceSansBold, Enum.Font.Fantasy}
 
-local fonts = {Enum.Font.Gotham, Enum.Font.GothamBold, Enum.Font.Antique, Enum.Font.ArialBold, Enum.Font.SourceSansBold, Enum.Font.Fantasy}
+    local topGui = Instance.new("ScreenGui", guiParent)
+    topGui.Name = "TopDarkaiiGui"
+    local bgFrame = Instance.new("Frame", topGui)
+    bgFrame.Size = UDim2.new(0, totalWidth, 0, totalHeight)
+    bgFrame.Position = UDim2.new(0.5, -totalWidth/2, 0, 10)
+    bgFrame.BackgroundColor3 = Color3.fromRGB(255,255,255)
+    bgFrame.BorderSizePixel = 0
 
-local topGui = Instance.new("ScreenGui")
-topGui.Name = "TopDarkaiiGui"
-topGui.ResetOnSpawn = false
-topGui.Parent = guiParent
+    for i=1,#letters do
+        local label = Instance.new("TextLabel", bgFrame)
+        label.Size = UDim2.new(0, letterSize, 0, letterSize)
+        label.Position = UDim2.new(0, padding + (i-1)*letterSize, 0, padding)
+        label.BackgroundTransparency = 1
+        label.Text = letters:sub(i,i)
+        label.Font = fonts[math.random(1,#fonts)]
+        label.TextSize = letterSize
+        label.TextColor3 = Color3.fromRGB(0,0,0)
+    end
 
-local bgFrame = Instance.new("Frame")
-bgFrame.Size = UDim2.new(0, totalWidth, 0, totalHeight)
-bgFrame.Position = UDim2.new(0.5, -totalWidth/2, 0, 10)
-bgFrame.BackgroundColor3 = Color3.fromRGB(255,255,255)
-bgFrame.BorderSizePixel = 0
-bgFrame.Parent = topGui
-
-for i=1,#letters do
-    local label = Instance.new("TextLabel")
-    label.Size = UDim2.new(0, letterSize, 0, letterSize)
-    label.Position = UDim2.new(0, padding + (i-1)*letterSize, 0, padding)
-    label.BackgroundTransparency = 1
-    label.Text = letters:sub(i,i)
-    label.Font = fonts[math.random(1,#fonts)]
-    label.TextSize = letterSize
-    label.TextColor3 = Color3.fromRGB(0,0,0)
-    label.Parent = bgFrame
+    return blLabel, drLabel, bgFrame
 end
 
--- Darkaii pulse animation
+local blLabel, drLabel, darkaiiFrame = createGUIs()
+
 spawn(function()
     while true do
-        for _, label in ipairs(bgFrame:GetChildren()) do
+        for _, label in ipairs(darkaiiFrame:GetChildren()) do
             if label:IsA("TextLabel") then
-                for i=1,5 do
-                    label.TextSize = label.TextSize + 2
-                    wait(0.05)
-                end
-                for i=1,5 do
-                    label.TextSize = label.TextSize - 2
-                    wait(0.05)
-                end
+                for i=1,5 do label.TextSize = label.TextSize + 2 wait(0.05) end
+                for i=1,5 do label.TextSize = label.TextSize - 2 wait(0.05) end
             end
         end
         wait(0.2)
     end
 end)
 
---====================--
--- BOTTOM-RIGHT DIAMOND COUNTER
---====================--
-local drGui = Instance.new("ScreenGui")
-drGui.Name = "DiamondCounterGui"
-drGui.ResetOnSpawn = false
-drGui.Parent = guiParent
-
-local drLabel = Instance.new("TextLabel")
-drLabel.Size = UDim2.new(0, 200, 0, 30)
-drLabel.Position = UDim2.new(1, -210, 1, -40)
-drLabel.BackgroundTransparency = 0.5
-drLabel.BackgroundColor3 = Color3.fromRGB(0,0,0)
-drLabel.TextColor3 = Color3.fromRGB(0,255,255)
-drLabel.Font = Enum.Font.SourceSansBold
-drLabel.TextSize = 12
-drLabel.Text = "Diamonds: 0"
-drLabel.Parent = drGui
-
--- Update diamonds loop
 spawn(function()
     while true do
         local stats = player:FindFirstChild("leaderstats")
         if stats and stats:FindFirstChild("Diamonds") then
             drLabel.Text = "Diamonds: "..stats.Diamonds.Value
         end
-        wait(0.5)
+        wait(0.3)
     end
 end)
 
---====================--
--- FARMING LOGIC
---====================--
 local weaponDPS = {["Katana"]=15, ["Good Axe"]=9, ["Old Axe"]=7}
 local targets = {["Cultist"]=true, ["Crossbow Cultist"]=true, ["Juggernaut Cultist"]=true}
 
@@ -182,14 +154,14 @@ local function findDiamondChest()
 end
 
 local function teleportAbove(pos,height)
-    char:SetPrimaryPartCFrame(CFrame.new(pos+Vector3.new(0,height,0)))
+    char:SetPrimaryPartCFrame(CFrame.new(pos + Vector3.new(0,height,0)))
 end
 
 local function autoOpenChest(chest)
     local prompt = chest:FindFirstChildWhichIsA("ProximityPrompt")
     if prompt and prompt.Enabled then
         local wrap = coroutine.wrap(function()
-            for i=1,5 do
+            for i = 1, 5 do
                 prompt:InputHoldBegin()
                 wait(0.1)
                 prompt:InputHoldEnd()
@@ -207,14 +179,13 @@ local function hasStronghold()
     return false
 end
 
--- SERVER HOP
 local function serverHop()
     local success, servers = pcall(function()
         return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..game.PlaceId.."/servers/Public?sortOrder=Asc&limit=100"))
     end)
     if success and servers and servers.data then
         for _, server in ipairs(servers.data) do
-            if server.playing < server.maxPlayers and server.id~=game.JobId then
+            if server.playing < server.maxPlayers and server.id ~= game.JobId then
                 TeleportService:TeleportToPlaceInstance(game.PlaceId, server.id, player)
                 return
             end
@@ -222,16 +193,27 @@ local function serverHop()
     end
 end
 
--- MAIN FARM LOOP
+local function autoJoinGame()
+    if Workspace:FindFirstChild("Lobby") then
+        local joinEvent = ReplicatedStorage:FindFirstChild("JoinGame")
+        if joinEvent then
+            joinEvent:FireServer()
+            repeat wait(1) until Workspace:FindFirstChild("Diamond Chest")
+        end
+    end
+end
+
+autoJoinGame()
+
 spawn(function()
-    while true do
+    while getgenv().AutoFarmDiamonds do
         local chest = findDiamondChest()
         if chest then
+            blLabel.Text = "Teleporting to Chest..."
             teleportAbove(chest.Position,3)
             wait(0.3)
 
-            -- Clear cultists
-            blLabel.Text="Clearing Cultists..."
+            blLabel.Text = "Clearing Cultists..."
             while true do
                 local cultistsLeft=false
                 for _, npc in ipairs(Workspace:GetDescendants()) do
@@ -245,13 +227,17 @@ spawn(function()
                 wait(getgenv().AttackSpeed)
             end
 
-            -- Open chest
-            blLabel.Text="Opening Chest..."
+            blLabel.Text = "Opening Chest..."
             autoOpenChest(chest)
             wait(1)
-            blLabel.Text="STARTING FARM!"
+            blLabel.Text = "STARTING FARM!"
 
-            if hasStronghold() then wait(10) serverHop() else serverHop() end
+            if getgenv().ServerHopAfterChest then
+                if hasStronghold() then wait(10) end
+                serverHop()
+            end
+        else
+            wait(0.5)
         end
         wait(0.5)
     end
