@@ -156,30 +156,32 @@ local function startStrongholdWave(strongholdPosition)
     wait(0.5)
 end
 
+local autoHopEnabled = true
+
 spawn(function()
-    wait(10) -- initial 10-second delay only once
     local placeId = game.PlaceId
     local visited = {}
-
     while true do
-        local servers = {}
-        local success = pcall(function()
-            servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
-        end)
+        if autoHopEnabled then
+            local servers = {}
+            local success = pcall(function()
+                servers = HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
+            end)
 
-        if success and type(servers) == "table" then
-            local hopped = false
-            for _, s in pairs(servers) do
-                if tonumber(s.playing) < tonumber(s.maxPlayers) and s.id ~= game.JobId and not visited[s.id] then
-                    visited[s.id] = true
-                    pcall(function()
-                        TeleportService:TeleportToPlaceInstance(placeId, s.id, player)
-                    end)
-                    hopped = true
-                    break
+            if success and type(servers) == "table" then
+                local hopped = false
+                for _, s in pairs(servers) do
+                    if tonumber(s.playing) < tonumber(s.maxPlayers) and s.id ~= game.JobId and not visited[s.id] then
+                        visited[s.id] = true
+                        pcall(function()
+                            TeleportService:TeleportToPlaceInstance(placeId, s.id, player)
+                        end)
+                        hopped = true
+                        break
+                    end
                 end
+                if not hopped then visited = {} end
             end
-            if not hopped then visited = {} end
         end
         wait(0.5)
     end
@@ -188,8 +190,10 @@ end)
 while true do
     local chest=findDiamondChest()
     if chest then
+        autoHopEnabled = false
         teleportAbove(chest.Position,3)
         wait(0.3)
+
         local strongholdNPC=findStrongholdEntrance()
         if strongholdNPC then
             startStrongholdWave(strongholdNPC.HumanoidRootPart.Position)
@@ -207,9 +211,24 @@ while true do
                 wait(getgenv().AttackSpeed)
             end
         end
+
         autoOpenChest(chest)
+        autoHopEnabled = true
         wait(1)
         updateMessage("STARTING FARM!", Color3.fromRGB(0,255,0))
+    else
+        local diamondFound = false
+        for _,v in ipairs(Workspace:GetDescendants()) do
+            if v:IsA("Model") and v:FindFirstChildWhichIsA("ProximityPrompt") and v.Name~="Diamond Chest" then
+                if v:FindFirstChild("Diamond") then
+                    diamondFound = true
+                    teleportAbove(v.PrimaryPart.Position,3)
+                    autoOpenChest(v)
+                    break
+                end
+            end
+        end
+        autoHopEnabled = not diamondFound
     end
     wait(0.5)
 end
