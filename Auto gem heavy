@@ -171,61 +171,23 @@ local function startStrongholdWave(stronghold)
 end
 
 local function serverHop()
-    local placeId=game.PlaceId
-    local visited={}
+    local placeId = game.PlaceId
+    local visited = {}
     while true do
-        if not char or char.Humanoid.Health<=0 then
-            local servers
-            pcall(function()
-                servers=HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
-            end)
-            for _,s in pairs(servers or {}) do
+        local success, servers = pcall(function()
+            return HttpService:JSONDecode(game:HttpGet("https://games.roblox.com/v1/games/"..placeId.."/servers/Public?sortOrder=Asc&limit=100")).data
+        end)
+        if success and type(servers)=="table" then
+            for _,s in pairs(servers) do
                 if tonumber(s.playing)<tonumber(s.maxPlayers) and s.id~=game.JobId and not visited[s.id] then
                     visited[s.id]=true
                     TeleportService:TeleportToPlaceInstance(placeId,s.id,player)
-                    break
+                    return
                 end
             end
         end
-        wait(0.1)
+        wait(1)
     end
-end
-
-while true do
-    openAllChestsAndCollectDiamonds()
-    local diamondChest=findDiamondChest()
-    if diamondChest then
-        teleportAbove(diamondChest.Position,3)
-    end
-    local stronghold=findStronghold()
-    if stronghold then
-        startStrongholdWave(stronghold)
-        local waveActive=false
-        while not waveActive do
-            for _,npc in ipairs(Workspace:GetDescendants()) do
-                if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
-                    waveActive=true
-                    break
-                end
-            end
-            wait(0.1)
-        end
-        while true do
-            if getgenv().KillAura then multiHitAttack() end
-            wait(getgenv().AttackSpeed)
-            local cleared=true
-            for _,npc in ipairs(Workspace:GetDescendants()) do
-                if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
-                    cleared=false
-                    break
-                end
-            end
-            if cleared then break end
-        end
-    end
-    wait(10)
-    serverHop()
-    break
 end
 
 spawn(function()
@@ -242,25 +204,39 @@ end)
 
 spawn(function()
     while true do
+        openAllChestsAndCollectDiamonds()
         local diamondChest=findDiamondChest()
         if diamondChest then
-            local pos=diamondChest.PrimaryPart and diamondChest.PrimaryPart.Position or diamondChest.Position
-            teleportAbove(pos,3)
-            while true do
+            teleportAbove(diamondChest.Position,3)
+            local stronghold=findStronghold()
+            if stronghold then
+                startStrongholdWave(stronghold)
                 local waveOngoing=false
-                for _,npc in ipairs(Workspace:GetDescendants()) do
-                    if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
-                        waveOngoing=true
-                        break
+                while not waveOngoing do
+                    for _,npc in ipairs(Workspace:GetDescendants()) do
+                        if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
+                            waveOngoing=true
+                            break
+                        end
                     end
+                    wait(0.1)
                 end
-                if getgenv().KillAura and waveOngoing then
-                    multiHitAttack()
+                while true do
+                    if getgenv().KillAura then multiHitAttack() end
+                    wait(getgenv().AttackSpeed)
+                    local cleared=true
+                    for _,npc in ipairs(Workspace:GetDescendants()) do
+                        if targets[npc.Name] and npc:FindFirstChild("Humanoid") and npc.Humanoid.Health>0 then
+                            cleared=false
+                            break
+                        end
+                    end
+                    if cleared then break end
                 end
-                if not waveOngoing then break end
-                wait(getgenv().AttackSpeed)
             end
         end
-        wait(0.5)
+        wait(10)
+        serverHop()
+        break
     end
 end)
