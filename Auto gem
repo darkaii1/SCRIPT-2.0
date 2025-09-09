@@ -1,0 +1,261 @@
+-- SERVICES
+local Players = game:GetService("Players")
+local TeleportService = game:GetService("TeleportService")
+local Workspace = game:GetService("Workspace")
+local HttpService = game:GetService("HttpService")
+local RunService = game:GetService("RunService")
+
+local player = Players.LocalPlayer
+local char = player.Character or player.CharacterAdded:Wait()
+local PlaceId = game.PlaceId
+
+getgenv().KillAura = true
+getgenv().Range = 100
+getgenv().AttackSpeed = 0.15
+
+--=======================--
+-- LOBBY DETECTION & AUTO JOIN
+--=======================--
+local function inLobby()
+    local lobbyPart = Workspace:FindFirstChild("JoinGameButton") -- adjust as needed
+    return lobbyPart ~= nil
+end
+
+local function autoJoinGame()
+    local joinButton = Workspace:FindFirstChild("JoinGameButton")
+    if joinButton then
+        if joinButton:IsA("ProximityPrompt") then
+            joinButton:InputHoldBegin()
+            wait(0.1)
+            joinButton:InputHoldEnd()
+        elseif joinButton:IsA("ClickDetector") then
+            joinButton:FireClick()
+        end
+    end
+end
+
+repeat
+    if inLobby() then
+        print("In lobby, joining game...")
+        autoJoinGame()
+    end
+    wait(1)
+until not inLobby()
+print("Joined main game, starting automation...")
+
+--=======================--
+-- GUI SETUP
+--=======================--
+-- Bottom-left GUI
+local blScreenGui = Instance.new("ScreenGui")
+blScreenGui.Name = "FarmingStatusGui"
+blScreenGui.ResetOnSpawn = false
+blScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local blLabel = Instance.new("TextLabel")
+blLabel.Size = UDim2.new(0, 300, 0, 40)
+blLabel.Position = UDim2.new(0, 10, 1, -50)
+blLabel.BackgroundTransparency = 0.5
+blLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+blLabel.TextColor3 = Color3.fromRGB(255, 255, 0)
+blLabel.Font = Enum.Font.SourceSansBold
+blLabel.TextSize = 20
+blLabel.Text = "Waiting for HumanoidRootPart..."
+blLabel.Parent = blScreenGui
+
+-- Top-center Darkaii GUI
+local topLetters = "Darkaii"
+local letterSize = 96
+local padding = 20
+local totalWidth = #topLetters * letterSize + padding * 2
+local totalHeight = letterSize + padding * 2
+
+local fonts = {
+    Enum.Font.Gotham,
+    Enum.Font.GothamBold,
+    Enum.Font.Antique,
+    Enum.Font.ArialBold,
+    Enum.Font.SourceSansBold,
+    Enum.Font.Fantasy
+}
+
+local topScreenGui = Instance.new("ScreenGui")
+topScreenGui.Name = "DarkaiiTopGui"
+topScreenGui.ResetOnSpawn = false
+topScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+local bgFrame = Instance.new("Frame")
+bgFrame.Size = UDim2.new(0, totalWidth, 0, totalHeight)
+bgFrame.Position = UDim2.new(0.5, -totalWidth/2, 0, 10)
+bgFrame.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+bgFrame.BorderSizePixel = 0
+bgFrame.Parent = topScreenGui
+
+for i = 1, #topLetters do
+    local label = Instance.new("TextLabel")
+    label.Size = UDim2.new(0, letterSize, 0, letterSize)
+    label.Position = UDim2.new(0, padding + (i-1) * letterSize, 0, padding)
+    label.BackgroundTransparency = 1
+    label.TextColor3 = Color3.fromRGB(0, 0, 0)
+    label.TextScaled = false
+    label.TextSize = letterSize
+    label.Text = topLetters:sub(i, i)
+    label.Font = fonts[math.random(1, #fonts)]
+    label.Parent = bgFrame
+end
+
+-- Darkaii pulse animation
+spawn(function()
+    while true do
+        for _, label in ipairs(bgFrame:GetChildren()) do
+            if label:IsA("TextLabel") then
+                for i = 1, 5 do
+                    label.TextSize = label.TextSize + 2
+                    wait(0.05)
+                end
+                for i = 1, 5 do
+                    label.TextSize = label.TextSize - 2
+                    wait(0.05)
+                end
+            end
+        end
+        wait(0.2)
+    end
+end)
+
+-- Bottom-right Diamond Counter GUI
+local diamondGui = Instance.new("ScreenGui")
+diamondGui.Name = "DiamondCounterGui"
+diamondGui.ResetOnSpawn = false
+diamondGui.Parent = player:WaitForChild("PlayerGui")
+
+local diamondLabel = Instance.new("TextLabel")
+diamondLabel.Size = UDim2.new(0, 200, 0, 30)
+diamondLabel.Position = UDim2.new(1, -210, 1, -40)
+diamondLabel.BackgroundTransparency = 0.5
+diamondLabel.BackgroundColor3 = Color3.fromRGB(0, 0, 0)
+diamondLabel.TextColor3 = Color3.fromRGB(0, 255, 255)
+diamondLabel.Font = Enum.Font.SourceSansBold
+diamondLabel.TextSize = 12
+diamondLabel.Text = "Diamonds: 0"
+diamondLabel.Parent = diamondGui
+
+--=======================--
+-- WAIT FOR HRP AND START FARM
+--=======================--
+spawn(function()
+    local hrp
+    repeat
+        hrp = char:FindFirstChild("HumanoidRootPart")
+        blLabel.Text = "Waiting for HumanoidRootPart..."
+        wait(0.5)
+    until hrp
+
+    blLabel.Text = "STARTING FARM!"
+    blLabel.TextColor3 = Color3.fromRGB(0, 255, 0)
+end)
+
+--=======================--
+-- DIAMOND COUNTER UPDATE
+--=======================--
+local function getDiamonds()
+    local stats = player:FindFirstChild("leaderstats")
+    if stats then
+        local diamonds = stats:FindFirstChild("Diamonds")
+        if diamonds then
+            return diamonds.Value
+        end
+    end
+    return 0
+end
+
+spawn(function()
+    while true do
+        diamondLabel.Text = "Diamonds: " .. tostring(getDiamonds())
+        wait(0.5)
+    end
+end)
+
+--=======================--
+-- FARMING LOGIC
+--=======================--
+local function getStrongestWeaponAndRemote()
+    local bestTool, bestDamage, bestRemote = nil, 0, nil
+    local function checkTool(tool)
+        local dmg = {["Katana"]=15,["Good Axe"]=9,["Old Axe"]=7}[tool.Name] or 0
+        if tool:FindFirstChild("Damage") then dmg = tonumber(tool.Damage.Value) or dmg end
+        if tool:FindFirstChild("Stats") and tool.Stats:FindFirstChild("Damage") then
+            dmg = tonumber(tool.Stats.Damage.Value) or dmg
+        end
+        if tool:GetAttribute("Damage") then dmg = tonumber(tool:GetAttribute("Damage")) or dmg end
+        if dmg > bestDamage then bestDamage, bestTool = dmg, tool end
+    end
+    for _, tool in ipairs(player.Backpack:GetChildren()) do if tool:IsA("Tool") then checkTool(tool) end end
+    for _, tool in ipairs(char:GetChildren()) do if tool:IsA("Tool") then checkTool(tool) end end
+    if bestTool then
+        for _, v in ipairs(bestTool:GetDescendants()) do
+            if v:IsA("RemoteEvent") or v:IsA("RemoteFunction") then bestRemote = v; break end
+        end
+    end
+    return bestTool, bestRemote
+end
+
+local function fireRemote(remote, npc)
+    local hum = npc:FindFirstChild("Humanoid")
+    if not hum then return end
+    pcall(function() remote:FireServer(npc) end)
+    pcall(function() remote:FireServer("Attack", npc) end)
+    pcall(function() remote:FireServer("Hit", npc) end)
+    pcall(function() remote:FireServer(npc, hum) end)
+    pcall(function() remote:FireServer({Target = npc}) end)
+end
+
+local function multiHitAttack()
+    local _, remote = getStrongestWeaponAndRemote()
+    if not remote then return end
+    for _, npc in ipairs(Workspace:GetDescendants()) do
+        if npc:FindFirstChild("Humanoid") and npc:FindFirstChild("HumanoidRootPart") then
+            if {["Cultist"]=true,["Crossbow Cultist"]=true,["Juggernaut Cultist"]=true}[npc.Name] and npc.Humanoid.Health > 0 then
+                local dist = (npc.HumanoidRootPart.Position - char.HumanoidRootPart.Position).Magnitude
+                if dist <= getgenv().Range then fireRemote(remote, npc) end
+            end
+        end
+    end
+end
+
+local function findDiamondChest()
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v.Name == "Diamond Chest" and v:FindFirstChildWhichIsA("ProximityPrompt") then
+            return v
+        end
+    end
+end
+
+local function teleportAbove(position, height)
+    char:SetPrimaryPartCFrame(CFrame.new(position + Vector3.new(0, height, 0)))
+end
+
+local function autoOpenChest(chest)
+    local prompt = chest:FindFirstChildWhichIsA("ProximityPrompt")
+    if prompt and prompt.Enabled then
+        local fireproximity = coroutine.wrap(function()
+            for i=1,5 do
+                prompt:InputHoldBegin()
+                wait(0.1)
+                prompt:InputHoldEnd()
+                wait(0.1)
+            end
+        end)
+        fireproximity()
+    end
+end
+
+local function hasStronghold()
+    for _, v in ipairs(Workspace:GetDescendants()) do
+        if v.Name == "Stronghold Entrance" then return true end
+    end
+    return false
+end
+
+-- SERVER HOP
+local function server
